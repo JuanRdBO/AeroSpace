@@ -2,11 +2,9 @@
 import Common
 import XCTest
 
-/// Offline lid-close geometry from the live 3→2 capture.
-/// Rearrange / gcMonitors / setActiveWorkspace never call AX or NSScreen when isUnitTest.
-/// Intended repair dest (not in this commit): focused.workspaceMonitor with the new
-/// monitors already installed and maps not yet cleared. That uses existing force
-/// assignment and monitorApproximation fallbacks. Do not invent a second distance map.
+/// After a 3→2 (or same-count origin) reconcile, the already-focused workspace stays
+/// visible on a legal surviving monitor. Cases drive `gcMonitors` / `activeWorkspace`
+/// only; they do not call AX or `NSScreen` when `isUnitTest`.
 @MainActor
 final class DisplayReconcileTest: XCTestCase {
     override func setUp() async throws { setUpWorkspacesForTests() }
