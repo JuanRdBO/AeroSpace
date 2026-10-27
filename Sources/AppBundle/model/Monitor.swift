@@ -94,8 +94,14 @@ private let testMonitor = MonitorImpl(
     isMain: true,
 )
 
+/// Test-only geometry override. `monitors` / `mainMonitor` read this only when `isUnitTest`.
+nonisolated(unsafe) var testMonitors: [Monitor]? = nil
+
 var mainMonitor: Monitor {
-    if isUnitTest { return testMonitor }
+    if isUnitTest {
+        let list = unsafe testMonitors ?? [testMonitor]
+        return list.first(where: \.isMain) ?? list.first ?? testMonitor
+    }
     let screens = NSScreen.screens
     // Fallback: If main screen can't be found (e.g., during display reconfiguration),
     // return screens.first or testMonitor to avoid crash
@@ -105,9 +111,8 @@ var mainMonitor: Monitor {
 }
 
 var monitors: [Monitor] {
-    isUnitTest
-        ? [testMonitor]
-        : NSScreen.screens.enumerated().map { $0.element.toMonitor(monitorAppKitNsScreenScreensId: $0.offset + 1) }
+    if isUnitTest { return unsafe testMonitors ?? [testMonitor] }
+    return NSScreen.screens.enumerated().map { $0.element.toMonitor(monitorAppKitNsScreenScreensId: $0.offset + 1) }
 }
 
 var sortedMonitors: [Monitor] {

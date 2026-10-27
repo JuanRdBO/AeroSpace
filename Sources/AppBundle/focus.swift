@@ -49,10 +49,30 @@ private struct FrozenFocus: AeroAny, Equatable, Sendable {
     }
 }
 
-@MainActor private var _focus: FrozenFocus = {
-    let monitor = mainMonitor
-    return FrozenFocus(windowId: nil, workspaceName: monitor.activeWorkspace.name, monitorId_oneBased: monitor.monitorId_oneBased ?? 0)
-}()
+@MainActor private var _focusStorage: FrozenFocus? = nil
+
+@MainActor private var _focus: FrozenFocus {
+    get {
+        if let existing = _focusStorage { return existing }
+        let monitor = mainMonitor
+        let created = FrozenFocus(
+            windowId: nil,
+            workspaceName: monitor.activeWorkspace.name,
+            monitorId_oneBased: monitor.monitorId_oneBased ?? 0,
+        )
+        _focusStorage = created
+        return created
+    }
+    set { _focusStorage = newValue }
+}
+
+/// Already-initialized focus only. Does not create FrozenFocus via `mainMonitor.activeWorkspace`.
+@MainActor var initializedFrozenFocusWorkspaceName: String? { _focusStorage?.workspaceName }
+
+@MainActor func resetFrozenFocusForTests() {
+    check(isUnitTest)
+    _focusStorage = nil
+}
 
 /// Global focus.
 /// Commands must be cautious about accessing this property directly. There are legitimate cases.
