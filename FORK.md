@@ -1,6 +1,8 @@
 # AeroSpace display-reconcile fork
 
-Baseline: AeroSpace **0.21.3-Beta** at `d56e163`. This fork adds one behavior: after a display count or origin change, the **already-focused workspace stays visible** on a legal surviving monitor. The restore runs in shared monitor rearrange, before layout.
+Baseline: AeroSpace **0.21.3-Beta** at `d56e163`. This fork makes two changes. First, after a display count or origin change, the **already-focused workspace stays visible** on a legal surviving monitor. The restore runs in shared monitor rearrange, before layout. Second, `updateTrayText` **skips unchanged tray publishes**: it assigns `trayText`, `workspaces` and `trayItems` only when the value changed, because `@Published` notifies even for equal values.
+
+`TrayMenuModelTest` measures the tray change: 100 unchanged `updateTrayText` calls produced 300 publisher notifications before the change and 0 after, and real changes still notify. This counts model notifications only. It is not a live CPU or render measurement.
 
 ## Intentional limits
 
