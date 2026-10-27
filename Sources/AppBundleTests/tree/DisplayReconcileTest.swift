@@ -12,7 +12,9 @@ final class DisplayReconcileTest: XCTestCase {
     override func setUp() async throws { setUpWorkspacesForTests() }
 
     override func tearDown() async throws {
-        testMonitors = nil
+        installTestMonitors([])
+        gcMonitors()
+        installTestMonitors(nil)
         resetFrozenFocusForTests()
     }
 
@@ -60,11 +62,11 @@ final class DisplayReconcileTest: XCTestCase {
 
     func testColdLazyFocusInit_afterClearedMaps() {
         seedOpenThreeMonitors(forceAssignNumerics: true)
-        testMonitors = []
+        installTestMonitors([])
         gcMonitors()
         resetFrozenFocusForTests()
         assertNil(initializedFrozenFocusWorkspaceName)
-        testMonitors = [closedLeft()]
+        installTestMonitors([closedLeft()])
         let workspace = focus.workspace
         assertNotNil(initializedFrozenFocusWorkspaceName)
         assertTrue(workspace.isVisible)
@@ -74,7 +76,7 @@ final class DisplayReconcileTest: XCTestCase {
 
     func testActiveWorkspace_sameCountChangedOrigins() {
         config.persistentWorkspaces = ["1", "R"]
-        testMonitors = [closedLeft(), closedRight()]
+        installTestMonitors([closedLeft(), closedRight()])
         gcMonitors()
         check(closedLeft().setActiveWorkspace(Workspace.get(byName: "1")))
         check(closedRight().setActiveWorkspace(Workspace.get(byName: "R")))
@@ -98,7 +100,7 @@ final class DisplayReconcileTest: XCTestCase {
             height: 1080,
             isMain: false,
         )
-        testMonitors = [shiftedLeft, shiftedRight]
+        installTestMonitors([shiftedLeft, shiftedRight])
         gcMonitors()
         assertEquals(closedLeft().activeWorkspace.name, "1")
 
@@ -111,7 +113,7 @@ final class DisplayReconcileTest: XCTestCase {
     func testEmptyMonitors_skipRepairAndLeaveNoVisibles() {
         seedOpenThreeMonitors(forceAssignNumerics: true)
         assertTrue(Workspace.get(byName: "2").focusWorkspace())
-        testMonitors = []
+        installTestMonitors([])
         gcMonitors()
         assertEquals(initializedFrozenFocusWorkspaceName, "2")
         assertEquals(focus.workspace.name, "2")
@@ -128,6 +130,11 @@ private struct TestMonitor: Monitor {
     let isMain: Bool
     var width: CGFloat { rect.width }
     var height: CGFloat { rect.height }
+}
+
+@MainActor
+private func installTestMonitors(_ monitors: [Monitor]?) {
+    unsafe testMonitors = monitors
 }
 
 @MainActor
@@ -184,7 +191,7 @@ private func seedOpenThreeMonitors(forceAssignNumerics: Bool) {
             "2": [.sequenceNumber(2)],
         ]
     }
-    testMonitors = [openLeft(), openLaptop(), openRight()]
+    installTestMonitors([openLeft(), openLaptop(), openRight()])
     gcMonitors()
     check(openLeft().setActiveWorkspace(Workspace.get(byName: "1")))
     check(openLaptop().setActiveWorkspace(Workspace.get(byName: "2")))
@@ -193,7 +200,7 @@ private func seedOpenThreeMonitors(forceAssignNumerics: Bool) {
 
 @MainActor
 private func applyClosedTwoMonitors() {
-    testMonitors = [closedLeft(), closedRight()]
+    installTestMonitors([closedLeft(), closedRight()])
 }
 
 @MainActor
