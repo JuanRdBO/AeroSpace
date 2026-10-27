@@ -1,0 +1,79 @@
+# Builds an installable, ad-hoc signed release ZIP of this fork and uploads it as a workflow artifact.
+# Nothing is published, installed or launched.
+name: fork-build
+
+on:
+  push:
+    branches:
+      - 'fix/preserve-focused-workspace-on-display-change'
+  workflow_dispatch:
+    inputs:
+      build-version:
+        description: 'Build version (default: 0.0.0-fork.<short sha>)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-release-artifact:
+    name: build-release-artifact
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - run: ./.github/gh-actions-runner-xcode-select.sh
+      - run: brew install bash fish xcbeautify swiftly
+      - run: swiftly init --skip-install --assume-yes --verbose && swiftly install
+      - run: swiftly run swift --version
+      - name: Resolve build version
+        id: version
+        env:
+          INPUT_BUILD_VERSION: ${{ inputs.build-version }}
+        run: |
+          version="${INPUT_BUILD_VERSION:-0.0.0-fork.$(git rev-parse --short HEAD)}"
+          if ! grep -Eq '^[0-9A-Za-z._-]+$' <<< "$version"; then
+              echo "Invalid build version: $version" > /dev/stderr
+              exit 1
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+      - name: './build-release.sh'
+        env:
+          BUILD_VERSION: ${{ steps.version.outputs.value }}
+        # "-" means ad-hoc signing. There is no aerospace-codesign-certificate on GH Actions
+        run: ./build-release.sh --build-version "$BUILD_VERSION" --codesign-identity -
+      - name: Write provenance
+        env:
+          BUILD_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          zip=".release/AeroSpace-v$BUILD_VERSION.zip"
+          {
+              echo "version: $BUILD_VERSION"
+              echo "repository: $GITHUB_REPOSITORY"
+              echo "ref: $GITHUB_REF"
+              echo "commit: $(git rev-parse HEAD)"
+              echo "run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT"
+              echo "macos: $(sw_vers -productVersion)"
+              echo "xcode: $(xcodebuild -version | tr '\n' ' ')"
+              echo "swift: $(swiftly run swift --version 2>&1 | head -1)"
+              echo "signing: ad-hoc"
+              echo "zip-sha256: $(shasum -a 256 "$zip" | awk '{print $1}')"
+          } | tee .release/PROVENANCE.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: AeroSpace-v${{ steps.version.outputs.value }}
+          path: |
+            .release/AeroSpace-v${{ steps.version.outputs.value }}.zip
+            .release/PROVENANCE.txt
+          if-no-files-found: error
+          retention-days: 14
+      - name: cat ./.release/xcodebuild.log
+        if: ${{ always() }}
+        run: 'if test -f ./.release/xcodebuild.log; then cat ./.release/xcodebuild.log; fi'
