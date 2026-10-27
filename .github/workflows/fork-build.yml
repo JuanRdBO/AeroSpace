@@ -33,6 +33,7 @@ jobs:
       - run: brew install bash fish xcbeautify swiftly
       - run: swiftly init --skip-install --assume-yes --verbose && swiftly install
       - run: swiftly run swift --version
+      - run: swiftly run swift test --jobs 2
       - name: Resolve build version
         id: version
         env:
