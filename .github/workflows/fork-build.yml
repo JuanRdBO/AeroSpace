@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       build-version:
-        description: 'Build version (default: 0.0.0-fork.<short sha>)'
+        description: 'Build version (default: 0.21.3-Beta-fork.<short sha>)'
         required: false
         default: ''
 
@@ -38,7 +38,7 @@ jobs:
         env:
           INPUT_BUILD_VERSION: ${{ inputs.build-version }}
         run: |
-          version="${INPUT_BUILD_VERSION:-0.0.0-fork.$(git rev-parse --short HEAD)}"
+          version="${INPUT_BUILD_VERSION:-0.21.3-Beta-fork.$(git rev-parse --short HEAD)}"
           if ! grep -Eq '^[0-9A-Za-z._-]+$' <<< "$version"; then
               echo "Invalid build version: $version" > /dev/stderr
               exit 1
@@ -72,6 +72,7 @@ jobs:
           path: |
             .release/AeroSpace-v${{ steps.version.outputs.value }}.zip
             .release/PROVENANCE.txt
+          include-hidden-files: true # .release is a hidden dir
           if-no-files-found: error
           retention-days: 14
       - name: cat ./.release/xcodebuild.log
